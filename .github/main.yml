@@ -1,46 +1,33 @@
-name: GCP Integration Pipeline
-on:
+name: DevOpsLab Pipeline
+
+on: 
   push:
     branches:
       - main
-      - developer
 
 jobs:
-  build:
+  Build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Repositorio de check-out
-        uses: actions/checkout@v2
-
-      - name: Configurar o Python
-        uses: actions/setup-python@v2
+      - name: Download do Repositório
+        uses: actions/checkout@v3       # https://github.com/actions/checkout
         with:
-          python-version: 3.9
+          fetch-depth: 0
 
-      - name: Instalar dependencias
-        run: pip install -r requirements.txt
-
-      - name: Configurar SDK do Google Cloud
-        uses: google-github-actions/setup-gcloud@master
+      - name: Setup Python
+        uses: actions/setup-python@v4   # https://github.com/actions/setup-python
         with:
-          version: 'latest'
-          service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          python-version: '3.10'
 
-      - name: Configure Docker
+      - name: Install Requirements
+        run:  pip install flask pytest pytest-cov flask-wtf
+
+      - name: Docker Login
+        run: | 
+          echo '${{ secrets.GOOGLE_CREDENTIALS }}' > key.json
+          cat key.json | docker login -u _json_key --password-stdin '${{ vars.GOOGLE_ARTIFACT }}'
+
+      - name: Build & Push Image
         run: | 
           docker build -t ${{ vars.GOOGLE_ARTIFACT }}/${{ vars.GOOGLE_PROJECT_ID }}/${{ vars.GOOGLE_REPONAME }}/${{ vars.GOOGLE_MYAPP }}:latest .
-          docker push ${{ vars.GOOGLE_ARTIFACT }}/${{ vars.GOOGLE_PROJECT_ID }}/${{ vars.GOOGLE_REPONAME }}/${{ vars.GOOGLE_MYAPP }}:latest
-
-      - name: Criar imagem do Docker
-        run: docker build -t python:3.9 .
-
-      - name: Tag imagem Docker
-        run: docker tag python:3.9 gcr.io/python:3.9
-
-      - name: Enviar imagem do Docker para GCR
-        run: docker push gcr.io/grupo-03-390620/python:3.9
-
-      - name: Iniciar o Docker Compose
-        run: docker-compose up -d
-
+          docker push ${{ vars.GOOGLE_ARTIFACT }}/${{ vars.GOOGLE_PROJECT_ID }}/${{ vars.GOOGLE_REPONAME }}/${{ vars.GOOGLE_MYAPP }}:latest           
